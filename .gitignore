@@ -1,0 +1,6 @@
+.settings/
+.cproject
+.project
+.mxproject
+starycube.elf.launch
+STM32L151RD_FLASH.Id

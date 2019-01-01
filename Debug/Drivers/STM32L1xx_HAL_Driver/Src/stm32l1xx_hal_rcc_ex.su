@@ -1,0 +1,8 @@
+stm32l1xx_hal_rcc_ex.c:110:19:HAL_RCCEx_PeriphCLKConfig	40	static
+stm32l1xx_hal_rcc_ex.c:236:6:HAL_RCCEx_GetPeriphCLKConfig	0	static
+stm32l1xx_hal_rcc_ex.c:273:10:HAL_RCCEx_GetPeriphCLKFreq	0	static
+stm32l1xx_hal_rcc_ex.c:362:6:HAL_RCCEx_EnableLSECSS	0	static
+stm32l1xx_hal_rcc_ex.c:375:6:HAL_RCCEx_DisableLSECSS	0	static
+stm32l1xx_hal_rcc_ex.c:389:6:HAL_RCCEx_EnableLSECSS_IT	0	static
+stm32l1xx_hal_rcc_ex.c:423:13:HAL_RCCEx_LSECSS_Callback	0	static
+stm32l1xx_hal_rcc_ex.c:406:6:HAL_RCCEx_LSECSS_IRQHandler	8	static
