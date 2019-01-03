@@ -198,7 +198,7 @@ void LCD_PrintStringWindow(uint8_t y, uint8_t x, uint8_t window_size, uint16_t s
  */
 void LCD_PrintNumber(uint8_t y, uint8_t x, int32_t number){
 	char buf[50];
-  snprintf (buf, 100, "%d", number);
+  snprintf (buf, 100, "%ld", number);
 	LCD_PrintString(y, x, buf);
 }
 

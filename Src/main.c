@@ -67,23 +67,25 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-int pomiarstart=0;
+volatile uint8_t pomiarstart=0;
 uint8_t guzik=0;
 uint8_t menu=1;
 uint8_t czaspomiaru=1;
 uint8_t progwyzwalania=1;
 uint8_t zapis=1;
 uint8_t wzmocnienie=2;
-uint16_t PomiarADC;
-float wynikpomiaru[12];
-float wynikpomiaru1[12];
-uint8_t i=0;
+uint32_t PomiarADC;
+volatile uint8_t i=0;
+volatile uint8_t zapisano;
 uint8_t zapiszdo1=0;
-int nrprobki;
+uint32_t nrprobki=1;
 FATFS myFATFS;
 FIL myFile;
 UINT myBytes=0;
 int test=1;
+char buffer [512];
+char wynik [5];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,31 +138,12 @@ int main(void)
   MX_TIM7_Init();
 
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim7);
+
   HAL_GPIO_WritePin(GPIOA, T_10K_Pin, GPIO_PIN_SET);
   LCD_Init(2, 16);
   LCD_PrintString(1, 1, "Rozpocznij pomiar");
-  f_mount(&myFATFS,SD_Path,1);
-/*
-  char fileName[] = "TEST.txt\0";
-  int a=99,b=99,c=99;
-  a=f_mount(&myFATFS,SD_Path,1);
-  if(a==0)
-  	  {
-
-	  b=f_open(&myFile, fileName, FA_WRITE | FA_CREATE_ALWAYS);
-  	  if(b==0)
-  	  	  {
-  		  char myData[] = "test";
-  		  c=f_write(&myFile, myData,sizeof(myData),&myBytes);
-  		  f_close(&myFile);
-  	  	  }
-  	  }
-
-  LCD_PrintString(1, 1, "B³êdy:");
-  LCD_PrintNumber(2,1,a);
-  LCD_PrintNumber(2,5,b);
-  LCD_PrintNumber(2,9,c);*/
+ f_mount(&myFATFS,SD_Path,1);
+ HAL_TIM_Base_Start_IT(&htim7);
 
 
 
@@ -170,52 +153,67 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-  /* USER CODE END WHILE */
 
 
+	  //HAL_ADC_Start_DMA(&hadc, PomiarADC,1);
+
+//wrocic z adecem na przerwania a dma zrobiz sdio cicrulate buffer jak osiagnie polowe to zapisac ta polowe jak koniec to 2 polowe
 	  if(pomiarstart==1)
 	  {
 			  LCD_PrintString(1, 1, "Trwa pomiar       ");
 			  LCD_PrintString(2, 1, "                  ");
-			  char fileName[] = "TEST.txt\0";
+
+
+
+			  char fileName[] = "TEST1.txt\0";
 			  if(f_open(&myFile, fileName, FA_WRITE | FA_CREATE_ALWAYS)==FR_OK)
 			  {
-				  while(nrprobki<5000)
+
+				  while(nrprobki<12)
 				  {
-					  if(i==12)
+					  LCD_PrintString(1, 1, "nrprobki   ");
+					  LCD_PrintNumber(2, 1, nrprobki);
+
+					   //sprintf (buffer, "%ld,%ld;", nrprobki,PomiarADC);
+					  //strcat(dozapisu,buffer);
+					  sprintf(wynik,"%ld;",PomiarADC);
+					  buffer[5*nrprobki]=wynik[0];
+					  buffer[5*nrprobki+1]=wynik[1];
+					  buffer[5*nrprobki+2]=wynik[2];
+					  buffer[5*nrprobki+3]=wynik[3];
+					  buffer[5*nrprobki+4]=wynik[4];
+						  //strcat(dozapisu,buffer);
+					  if(nrprobki==11)
 					  {
-						  if(zapiszdo1==1)
-						  {
-							  zapiszdo1=0;
-				  		  	  f_write(&myFile, wynikpomiaru,sizeof(wynikpomiaru),&myBytes);
-				  			  if(test==1)
-				  			  {
-				  				  LCD_PrintString(1, 1, "Tu jestem       ");
-				  				  test=0;
-				  			  }
-						  }
-						  else
-						  {
-							  zapiszdo1=1;
-			  		  		  f_write(&myFile, wynikpomiaru1,sizeof(wynikpomiaru1),&myBytes);
-						  }
-						  i=0;
+			  		  f_write(&myFile,buffer,sizeof(buffer),&myBytes);
+			  		  f_sync(&myFile);
+			  		  zapisano=1;
 					  }
+
+
 				  }
+
 		  		 f_close(&myFile);
+				 LCD_PrintString(1, 1, "Pomiar zakonczony");
 			  }
-			  LCD_PrintString(1, 1, "Pomiar zakonczony");
+			  else
+			  {
+				  LCD_PrintString(1, 1, "Blad              ");
+			  }
+
 			  pomiarstart=0;
 		  }
 
 
 	  }
+  /* USER CODE END WHILE */
+
   /* USER CODE BEGIN 3 */
 
 
   /* USER CODE END 3 */
-}
 
+}
 
 /** System Clock Configuration
 */
@@ -279,6 +277,7 @@ static void MX_ADC_Init(void)
 {
 
   ADC_ChannelConfTypeDef sConfig;
+  ADC_InjectionConfTypeDef sConfigInjected;
 
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
     */
@@ -312,6 +311,19 @@ static void MX_ADC_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
+    /**Configures for the selected ADC injected channel its corresponding rank in the sequencer and its sample time 
+    */
+  sConfigInjected.InjectedChannel = ADC_CHANNEL_4;
+  sConfigInjected.InjectedRank = 1;
+  sConfigInjected.InjectedSamplingTime = ADC_SAMPLETIME_4CYCLES;
+  sConfigInjected.InjectedOffset = 0;
+  sConfigInjected.ExternalTrigInjecConv = ADC_INJECTED_SOFTWARE_START;
+  sConfigInjected.ExternalTrigInjecConvEdge = ADC_EXTERNALTRIGINJECCONV_EDGE_NONE;
+  if (HAL_ADCEx_InjectedConfigChannel(&hadc, &sConfigInjected) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
 }
 
 /* SDIO init function */
@@ -324,7 +336,7 @@ static void MX_SDIO_SD_Init(void)
   hsd.Init.ClockPowerSave = SDIO_CLOCK_POWER_SAVE_DISABLE;
   hsd.Init.BusWide = SDIO_BUS_WIDE_1B;
   hsd.Init.HardwareFlowControl = SDIO_HARDWARE_FLOW_CONTROL_DISABLE;
-  hsd.Init.ClockDiv = 16;
+  hsd.Init.ClockDiv = 15;
 
 }
 
@@ -773,17 +785,10 @@ void rozpocznijpomiar()
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
  if(htim->Instance == TIM7 && pomiarstart==1){ // Je¿eli przerwanie pochodzi od timera 7
-	 	 HAL_ADC_Start(&hadc);
+
+	 HAL_ADC_Start(&hadc);
 	 	 PomiarADC = HAL_ADC_GetValue(&hadc);// Pobranie zmierzonej wartosci
-	 	 if(zapiszdo1==0)
-	 	 {
-	 	 wynikpomiaru[i] = (3.3*PomiarADC)/4095;// Przeliczenie wartosci zmierzonej na napiecie
-	 	 }
-	 	 else
-	 	 {
-	 	 wynikpomiaru1[i] = (3.3*PomiarADC)/4095;
-	 	 }
-	 	 i++;
+
 	 	 nrprobki++;
 
  }
